@@ -3,6 +3,7 @@ import re
 import sqlite3
 import requests
 import spacy
+import os
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import (
@@ -13,8 +14,8 @@ from aiogram.types import (
 )
 from aiogram.filters import Command
 
-BOT_TOKEN = "TELEGRAM_BOT_TOKEN"
-TMDB_API_KEY = "TMDB_API_KEY"
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 
 nlp = spacy.load("ru_core_news_sm")
 
