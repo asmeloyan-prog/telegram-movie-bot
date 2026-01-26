@@ -135,12 +135,10 @@ def watched_keyboard(movie_id: int):
 
 # ---------- HANDLERS ----------
 async def handle_message(message: Message):
-    if len(text) < 5:
-    return
     
     text = message.text or message.caption
-    if not text:
-        return
+    if len(text) < 5:
+    return
 
     titles = extract_titles_llm(text)
     added = []
