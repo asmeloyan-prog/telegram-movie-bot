@@ -78,19 +78,19 @@ def search_tmdb(title: str):
     return None
 
 # ---------- TITLE EXTRACTION ----------
-def extract_titles(text: str):
-    titles = set()
-
+#def extract_titles(text: str):
+#    titles = set()
+#
     # Кавычки
-    titles.update(re.findall(r"[«\"]([^»\"]+)[»\"]", text))
+#    titles.update(re.findall(r"[«\"]([^»\"]+)[»\"]", text))
 
     # spaCy
-    doc = nlp(text)
-    for ent in doc.ents:
-        if ent.label_ == "WORK_OF_ART":
-            titles.add(ent.text)
+#    doc = nlp(text)
+#    for ent in doc.ents:
+#        if ent.label_ == "WORK_OF_ART":
+#            titles.add(ent.text)
 
-    return list(titles)
+#    return list(titles)
 
 # ---------- KEYBOARDS ----------
 def watched_keyboard(movie_id: int):
