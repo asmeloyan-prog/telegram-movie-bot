@@ -3,6 +3,7 @@ import re
 import sqlite3
 import requests
 import os
+import json
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import (
@@ -15,28 +16,59 @@ from aiogram.filters import Command
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_MODEL = "meta-llama/llama-3.1-8b-instruct"
 
-def extract_titles(text: str):
-    candidates = set()
+def extract_titles_llm(text: str) -> list[str]:
+    """
+    Возвращает ТОЛЬКО названия фильмов и сериалов.
+    Если ничего нет — пустой список.
+    """
 
-    # Названия в кавычках
-    candidates.update(re.findall(r"[«\"]([^»\"]+)[»\"]", text))
+    prompt = f"""
+Ты извлекаешь ТОЛЬКО названия ФИЛЬМОВ и СЕРИАЛОВ из текста на русском языке.
 
-    # Английские названия (Title Case)
-    candidates.update(
-        re.findall(r"\b(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b", text)
+Жёсткие правила:
+- добавляй ТОЛЬКО если это точно фильм или сериал
+- НЕ добавляй книги, игры, людей, YouTube, подкасты
+- НЕ добавляй общие слова и жанры
+- если есть сомнение — НЕ добавляй
+- если ничего нет — верни пустой список
+
+Верни ответ СТРОГО в JSON без пояснений.
+
+Формат:
+{{"titles": ["Название 1", "Название 2"]}}
+
+Текст:
+{text}
+"""
+
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": OPENROUTER_MODEL,
+            "messages": [
+                {"role": "system", "content": "Ты аккуратный извлекатель сущностей."},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.0
+        },
+        timeout=20
     )
 
-    # Короткие фразы после слов "посмотреть", "глянуть"
-    triggers = ["посмотреть", "глянуть", "советовали", "рекомендовали"]
-    for t in triggers:
-        if t in text.lower():
-            part = text.lower().split(t, 1)[1]
-            for chunk in re.split(r",|и|\n", part):
-                if 2 < len(chunk.strip()) < 50:
-                    candidates.add(chunk.strip().title())
+    data = response.json()
 
-    return list(candidates)
+    try:
+        content = data["choices"][0]["message"]["content"]
+        parsed = json.loads(content)
+        return parsed.get("titles", [])
+    except Exception:
+        return []
 
 # ---------- DATABASE ----------
 db = sqlite3.connect("movies.db")
@@ -103,12 +135,22 @@ def watched_keyboard(movie_id: int):
 
 # ---------- HANDLERS ----------
 async def handle_message(message: Message):
+    if len(text) < 5:
+    return
+    
     text = message.text or message.caption
     if not text:
         return
 
-    titles = extract_titles(text)
+    titles = extract_titles_llm(text)
     added = []
+
+    cleaned = []
+for t in titles:
+    if 2 < len(t) < 60 and not any(x in t.lower() for x in ["обзор", "рецензия"]):
+        cleaned.append(t)
+
+titles = cleaned
 
     for raw in titles:
         data = search_tmdb(raw)
