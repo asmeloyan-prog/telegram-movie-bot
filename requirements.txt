@@ -1,4 +1,2 @@
 aiogram
 requests
-spacy
-ru-core-news-sm
