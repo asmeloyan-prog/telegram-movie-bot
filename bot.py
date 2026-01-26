@@ -2,7 +2,6 @@ import asyncio
 import re
 import sqlite3
 import requests
-import spacy
 import os
 
 from aiogram import Bot, Dispatcher, F
@@ -17,7 +16,27 @@ from aiogram.filters import Command
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 
-nlp = spacy.load("ru_core_news_sm")
+def extract_titles(text: str):
+    candidates = set()
+
+    # Названия в кавычках
+    candidates.update(re.findall(r"[«\"]([^»\"]+)[»\"]", text))
+
+    # Английские названия (Title Case)
+    candidates.update(
+        re.findall(r"\b(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b", text)
+    )
+
+    # Короткие фразы после слов "посмотреть", "глянуть"
+    triggers = ["посмотреть", "глянуть", "советовали", "рекомендовали"]
+    for t in triggers:
+        if t in text.lower():
+            part = text.lower().split(t, 1)[1]
+            for chunk in re.split(r",|и|\n", part):
+                if 2 < len(chunk.strip()) < 50:
+                    candidates.add(chunk.strip().title())
+
+    return list(candidates)
 
 # ---------- DATABASE ----------
 db = sqlite3.connect("movies.db")
